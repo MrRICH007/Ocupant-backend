@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { query } = require('./db');
+const { query } = require('../db');
 
 if (!process.env.JWT_SECRET) {
   console.warn('WARNING: JWT_SECRET is not set. Using a development-only default.');
