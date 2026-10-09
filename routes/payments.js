@@ -52,7 +52,7 @@ async function verifyAndCredit(reference) {
   const tx = await paystackRequest(`/transaction/verify/${encodeURIComponent(reference)}`);
   const expectedKobo = Math.round(Number(payment.amount) * 100);
   if (tx.reference !== reference || tx.status !== 'success' || tx.currency !== payment.currency ||
-      Number(tx.amount) !== expectedKobo || payment.currency !== CURRENCY) {
+      Number(tx.amount) < expectedKobo || payment.currency !== CURRENCY) {
     // Do not mark a still-pending payment failed solely because a callback arrived early.
     if (tx.status === 'failed' || tx.status === 'abandoned' || tx.status === 'reversed') {
       await query("UPDATE payments SET status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE tx_ref = $1 AND status <> 'successful'", [reference]);
@@ -60,6 +60,8 @@ async function verifyAndCredit(reference) {
     return { ok: false, reason: 'payment status, amount, or currency did not match' };
   }
 
+  // Accept the configured price or more. This supports older transactions where Paystack
+  // added a checkout fee to the customer's charge. Underpayments are still rejected.
   // Credit once only. The row lock + conditional update prevents callback/webhook races
   // from extending the same purchase more than once.
   const client = await pool.connect();
@@ -153,6 +155,26 @@ router.post('/paystack/webhook', async (req, res) => {
     console.error('Paystack webhook processing failed:', e.message);
     // A non-2xx response asks Paystack to retry the webhook.
     return res.status(500).end();
+  }
+});
+
+// Admin-only reconciliation for older pending payments. The reference is verified
+// directly with Paystack; never mark a transaction successful from a dashboard screenshot.
+router.post('/paystack/reconcile/:reference', requireAdmin, async (req, res) => {
+  if (!configured(res)) return;
+  const reference = String(req.params.reference || '').trim();
+  if (!reference || reference.length > 200) {
+    return res.status(400).json({ ok: false, error: 'A valid transaction reference is required.' });
+  }
+  try {
+    const result = await verifyAndCredit(reference);
+    if (!result.ok) {
+      return res.status(409).json({ ok: false, error: 'Transaction was not credited.', reason: result.reason });
+    }
+    return res.json({ ok: true, already: Boolean(result.already), message: result.already ? 'Transaction was already reconciled.' : 'Verified transaction reconciled successfully.' });
+  } catch (e) {
+    console.error('Paystack admin reconciliation failed:', e.message);
+    return res.status(502).json({ ok: false, error: 'Could not verify this transaction with Paystack. Try again later.' });
   }
 });
 
