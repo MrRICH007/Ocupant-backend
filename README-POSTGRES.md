@@ -1,32 +1,17 @@
 # Ocupant PostgreSQL backend
 
-This version replaces the Render-local SQLite database with PostgreSQL. The Render web service can remain on the Free plan because the database is external to the service filesystem.
+This backend uses the existing PostgreSQL database. It does not use SQLite or a Render-local database file.
 
-## Required Render environment variables
+Required Render environment variables:
+- `DATABASE_URL` — PostgreSQL connection string.
+- `JWT_SECRET` — long, private production signing secret.
+- `ADMIN_EMAIL` and `ADMIN_PASSWORD` — intended admin account credentials.
+- `FRONTEND_URL` — deployed frontend origin, without a trailing slash.
+- `BACKEND_URL=https://ocupant-backend.onrender.com` — public backend origin, without a trailing slash.
+- `PAYSTACK_SECRET_KEY` — Paystack test or live secret key (backend only).
+- `PREMIUM_PRICE=10000` — Premium price in naira.
+- `PAYMENT_CURRENCY=NGN`.
 
-DATABASE_URL=postgresql://...
-JWT_SECRET=...
-ADMIN_EMAIL=...
-ADMIN_PASSWORD=...
-FLUTTERWAVE_SECRET_KEY=...
-FLUTTERWAVE_WEBHOOK_HASH=...
-FRONTEND_URL=https://...
-BACKEND_URL=https://ocupant-backend.onrender.com
-PREMIUM_PRICE=10000
-PAYMENT_CURRENCY=NGN
+Optional: `PG_POOL_MAX=5`, `PGSSL_DISABLE=false`.
 
-Optional:
-PG_POOL_MAX=5
-PGSSL_DISABLE=false
-
-Do not set DB_FILE anymore. This backend does not use SQLite.
-
-## Deploy
-
-1. Replace the backend source with this release.
-2. On Render, add DATABASE_URL containing your PostgreSQL connection string.
-3. Keep the existing JWT, admin, Flutterwave, frontend and backend variables.
-4. Remove DB_FILE and any Persistent Disk configuration if you are not using a disk.
-5. Deploy with `npm start`.
-
-On first startup the server creates the PostgreSQL tables and ensures the configured admin account exists.
+See `README-PAYSTACK.md` for the payment migration, webhook configuration, deployment order, and testing steps. Existing PostgreSQL user/property/payment rows and Premium expiry dates are preserved by the migration.
