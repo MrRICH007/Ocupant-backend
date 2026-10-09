@@ -53,3 +53,10 @@ The checkout callback URL is sent by the backend at initialization as:
 ## Verification limits
 
 This source bundle can be syntax-checked locally, but a real transaction and webhook cannot be proven without access to your Paystack test credentials, deployed Render service, and dashboard. Do not treat deployment or code checks as proof of live payment success.
+
+
+## Reconciling older pending Paystack payments
+
+This release adds an admin-only endpoint: `POST /api/payments/paystack/reconcile/:reference`. Call it with the normal authenticated admin session/token and the exact Paystack reference. It verifies the transaction with Paystack and credits Premium only when the reference, successful status, NGN currency, and amount (at least the configured price) match. This allows older records where the customer-paid checkout fee made the captured amount higher than the listed Premium price. Underpayments are not credited. Repeating reconciliation is idempotent. Do not expose this endpoint publicly or manually edit payment statuses.
+
+Example path (replace the reference): `/api/payments/paystack/reconcile/OCUPANT-...`
