@@ -124,6 +124,17 @@ async function initDb() {
 
     ALTER TABLE payments ADD COLUMN IF NOT EXISTS paystack_transaction_id TEXT;
     ALTER TABLE payments ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT 'flutterwave';
+
+    -- Registration profile fields; nullable for existing accounts created before this update.
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS state TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS city TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT;
+    CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique_idx
+      ON users (LOWER(username)) WHERE username IS NOT NULL;
+
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token_hash TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires_at TIMESTAMPTZ;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
     ALTER TABLE houses ADD COLUMN IF NOT EXISTS google_maps_url TEXT;
     ALTER TABLE houses ADD COLUMN IF NOT EXISTS google_maps_embed_url TEXT;
