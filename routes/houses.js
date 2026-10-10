@@ -45,6 +45,33 @@ async function normalizeMapData(url) {
   return { url: String(url).trim(), embedUrl: mapEmbedFromUrl(finalUrl) || mapEmbedFromUrl(url) };
 }
 
+
+function adminHouse(h) {
+  return {
+    id: h.id,
+    title: h.title,
+    location: h.location || '',
+    genericLocation: h.generic_location || '',
+    type: h.type,
+    status: h.status,
+    beds: h.beds,
+    baths: h.baths,
+    area: h.area || '',
+    firstYearPrice: Number(h.first_year_price),
+    subsequentPrice: Number(h.subsequent_price),
+    image: h.image || '',
+    description: h.description || '',
+    videos: parseVideos(h.videos),
+    owner: {
+      name: h.owner_name || '',
+      phone: h.owner_phone || '',
+      whatsapp: h.owner_whatsapp || ''
+    },
+    googleMapsUrl: h.google_maps_url || '',
+    googleMapsEmbedUrl: h.google_maps_embed_url || ''
+  };
+}
+
 function publicHouse(h, premium) {
   const house = {
     id: h.id,
@@ -88,7 +115,13 @@ router.get('/', optionalAuth, async (req, res, next) => {
     if (minPrice) add('first_year_price >= ?', Number(minPrice));
     if (maxPrice) add('first_year_price <= ?', Number(maxPrice));
     const result = await query(`SELECT * FROM houses WHERE ${where.join(' AND ')} ORDER BY id DESC`, params);
-    res.json({ premium: !!req.premium, houses: result.rows.map(h => publicHouse(h, req.premium)) });
+    // Admins need the complete record to populate the edit form. Keep public
+    // responses plan-gated, but never hide listing fields from authenticated admins.
+    const isAdmin = !!(req.user && req.user.is_admin);
+    res.json({
+      premium: !!req.premium,
+      houses: result.rows.map(h => isAdmin ? adminHouse(h) : publicHouse(h, req.premium))
+    });
   } catch (e) { next(e); }
 });
 
