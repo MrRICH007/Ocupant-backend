@@ -8,7 +8,7 @@ const router = express.Router();
 router.get('/users', requireAdmin, async (req, res, next) => {
   try {
     const result = await query(`
-      SELECT id, name, email, plan, premium_until, is_admin, created_at, last_login_at
+      SELECT id, name, email, username, state, city, referral_code, plan, premium_until, is_admin, created_at, last_login_at
       FROM users
       ORDER BY created_at DESC
     `);
@@ -16,6 +16,10 @@ router.get('/users', requireAdmin, async (req, res, next) => {
       id: u.id,
       name: u.name,
       email: u.email,
+      username: u.username || '',
+      state: u.state || '',
+      city: u.city || '',
+      referral_code: u.referral_code || '',
       plan: u.plan,
       premium: isPremium(u),
       premium_until: u.premium_until,
@@ -51,15 +55,16 @@ router.put('/users/:id/premium', requireAdmin, async (req, res, next) => {
       UPDATE users
       SET plan = $1, premium_until = $2
       WHERE id = $3
-      RETURNING id, name, email, plan, premium_until, is_admin, created_at, last_login_at
+      RETURNING id, name, email, username, state, city, referral_code, plan, premium_until, is_admin, created_at, last_login_at
     `, [enabled ? 'premium' : 'basic', premiumUntil, userId]);
 
     if (!result.rowCount) return res.status(404).json({ error: 'User not found' });
     const u = result.rows[0];
     res.json({
       user: {
-        id: u.id, name: u.name, email: u.email, plan: u.plan,
-        premium: isPremium(u), premium_until: u.premium_until,
+        id: u.id, name: u.name, email: u.email, username: u.username || '',
+        state: u.state || '', city: u.city || '', referral_code: u.referral_code || '',
+        plan: u.plan, premium: isPremium(u), premium_until: u.premium_until,
         is_admin: !!u.is_admin, created_at: u.created_at, last_login_at: u.last_login_at
       }
     });
