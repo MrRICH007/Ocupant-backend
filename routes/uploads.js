@@ -52,4 +52,42 @@ router.post('/image', requireAdmin, (req, res, next) => {
   });
 });
 
+
+const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
+const allowedVideos = new Set(['video/mp4', 'video/webm', 'video/quicktime', 'video/ogg']);
+const videoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_VIDEO_BYTES, files: 1 },
+  fileFilter: (req, file, cb) => {
+    if (!allowedVideos.has(file.mimetype)) return cb(new Error('Choose an MP4, WebM, MOV, or OGG video.'));
+    cb(null, true);
+  }
+});
+
+router.post('/video', requireAdmin, (req, res, next) => {
+  videoUpload.single('video')(req, res, async err => {
+    if (err) {
+      const message = err.code === 'LIMIT_FILE_SIZE' ? 'Video must be 100 MB or smaller.' : err.message;
+      return res.status(400).json({ error: message });
+    }
+    if (!req.file) return res.status(400).json({ error: 'Choose a video to upload.' });
+    try {
+      configureCloudinary();
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream({
+          folder: 'ocupant/property-videos',
+          resource_type: 'video',
+          allowed_formats: ['mp4', 'webm', 'mov', 'ogg'],
+          transformation: [{ quality: 'auto' }]
+        }, (error, uploaded) => error ? reject(error) : resolve(uploaded));
+        stream.end(req.file.buffer);
+      });
+      res.status(201).json({ video: result.secure_url, publicId: result.public_id, format: result.format, duration: result.duration, bytes: result.bytes });
+    } catch (e) {
+      if (e.status) return res.status(e.status).json({ error: e.message });
+      next(e);
+    }
+  });
+});
+
 module.exports = router;
